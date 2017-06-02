@@ -1,8 +1,7 @@
 require 'nokogiri'
 require 'open-uri'
 
-class ScrapeException < Exception
-end
+class ScrapeException < Exception; end;
 
 1.upto(5654) { |game_id|
   begin
