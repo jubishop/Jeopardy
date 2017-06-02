@@ -11,8 +11,6 @@ require 'open-uri'
 # linksFile = File.open("gamelinks.txt", "w")
 # 1.upto(33) { |season| scrape_gameLinks(season, linksFile) }
 # linksFile.close
-#
-# exit
 
 # TODO: Need to scrape daily doubles
 
