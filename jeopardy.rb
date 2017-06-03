@@ -2,17 +2,19 @@ require 'nokogiri'
 require 'open-uri'
 require 'sqlite3'
 
-class FalseClass; def to_i; 0 end end
-class TrueClass; def to_i; 1 end end
+class FalseClass; def to_i; 0; end; end;
+class TrueClass; def to_i; 1; end; end;
 
 class ScrapeException < Exception; end;
 
 db = SQLite3::Database.new "jeopardy.sqlite3"
 
-db.execute('delete from game')
-db.execute('delete from category')
-db.execute('delete from question')
-db.execute('delete from final_jeopardy')
+# remove this if you really want to fully re-scrape
+# db.execute('delete from game')
+# db.execute('delete from category')
+# db.execute('delete from question')
+# db.execute('delete from final_jeopardy')
+exit
 
 def strip_answer_tags(answer)
   Nokogiri::HTML(answer).text.gsub('\\', '')
