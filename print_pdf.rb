@@ -41,6 +41,8 @@ def print_game(game_id)
 
     box_count = 0
     questions_by_category.each { |id, questions|
+      next if (questions.length < 5)
+
       box_count += 1
       box_base_y = box_count.odd? ? 720 : 340
       bounding_box([20, box_base_y], :width => 500, :height => 340) do
@@ -52,7 +54,7 @@ def print_game(game_id)
               stroke_ellipse [-32, cursor - 13], 20, 10
               font 'Helvetica Inserat', :size => 10
               value =
-              text_box question[:daily_double] ? "DD" : question[:value].to_s,
+              text_box question[:value].to_s,
                 :at => [-42, cursor - 9],
                 :align => :center,
                 :width => 20
