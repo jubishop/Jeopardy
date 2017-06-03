@@ -59,16 +59,16 @@ def print_game(game_id)
         rnd.stroke_color '999999'
         rnd.stroke_bounds
         rnd.stroke_color '000000'
-        rnd.bounding_box([65, 330], :width => 420, :height => 325) do
+        rnd.bounding_box([70, 330], :width => 410, :height => 325) do
           questions.each { |question|
             rnd.pad(15) {
               rnd.fill_color 'cccccc'
-              rnd.fill_ellipse [-32, rnd.cursor - 13], 20, 10
-              rnd.stroke_ellipse [-32, rnd.cursor - 13], 20, 10
+              rnd.fill_ellipse [-34, rnd.cursor - 13], 20, 10
+              rnd.stroke_ellipse [-34, rnd.cursor - 13], 20, 10
               rnd.fill_color '000000'
               rnd.font 'Helvetica Inserat', :size => 12
               rnd.text_box question[:value].to_s,
-                :at => [-44, rnd.cursor - 9],
+                :at => [-46, rnd.cursor - 9],
                 :align => :center,
                 :width => 24
 
@@ -82,7 +82,7 @@ def print_game(game_id)
           rnd.font 'Courgette', :size => 10
           rnd.fill_color '666666'
           rnd.text_box game_date.strftime('%B %-d, %Y'),
-            :at => [20, 25],
+            :at => [10, 25],
             :width => 400,
             :align => :right
 
