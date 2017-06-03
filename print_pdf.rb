@@ -56,17 +56,21 @@ def print_game(game_id)
 
       box_base_y = box_count.odd? ? 720 : 340
       rnd.bounding_box([20, box_base_y], :width => 500, :height => 340) do
+        rnd.stroke_color '999999'
         rnd.stroke_bounds
+        rnd.stroke_color '000000'
         rnd.bounding_box([65, 330], :width => 420, :height => 325) do
-          rnd.fill_color '000000'
           questions.each { |question|
             rnd.pad(15) {
+              rnd.fill_color 'cccccc'
+              rnd.fill_ellipse [-32, rnd.cursor - 13], 20, 10
               rnd.stroke_ellipse [-32, rnd.cursor - 13], 20, 10
-              rnd.font 'Helvetica Inserat', :size => 10
+              rnd.fill_color '000000'
+              rnd.font 'Helvetica Inserat', :size => 12
               rnd.text_box question[:value].to_s,
-                :at => [-42, rnd.cursor - 9],
+                :at => [-44, rnd.cursor - 9],
                 :align => :center,
-                :width => 20
+                :width => 24
 
               rnd.font 'ITC Korinna', :style => :bold, :size => 9
               rnd.text question[:clue].upcase
@@ -81,6 +85,8 @@ def print_game(game_id)
             :at => [20, 25],
             :width => 400,
             :align => :right
+
+          rnd.image "jeopardy_logo.png", :at => [-50, 30], :width => 60
         end
       end
     }
