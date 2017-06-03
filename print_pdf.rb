@@ -27,23 +27,36 @@ categories_by_id = categories.map { |id, game_id, category, round|
 
 Prawn::Document.generate("cards/test.pdf") do
   font_families.update(
-     "ITC Korinna" => { :normal => "Korinna Regular.ttf" },
-     "Helvetica Inserat" => { :normal => "Helvetica Inserat LT.ttf" }
+     'ITC Korinna' => {
+        :normal => 'fonts/Korinna Regular.ttf',
+        :bold => 'fonts/Korinna Bold.ttf'
+      },
+     'Helvetica Inserat' => { :normal => 'fonts/Helvetica Inserat LT.ttf' },
+     'Chalkboard' => { :bold => 'fonts/Chalkboard-Bold.ttf'}
   )
 
   box_count = 0
   questions_by_category.each { |id, questions|
     box_count += 1
-    box_base_y = box_count.odd? ? 740 : 340
-    bounding_box([20, box_base_y], :width => 500, :height => 360) do
+    box_base_y = box_count.odd? ? 720 : 340
+    bounding_box([20, box_base_y], :width => 500, :height => 340) do
       stroke_bounds
-      bounding_box([20, 350], :width => 460, :height => 340) do
+      bounding_box([65, 330], :width => 420, :height => 320) do
         questions.each { |question|
           pad(15) {
-            font "ITC Korinna"
-            text question[:clue]
-            font "Helvetica Inserat"
-            text_box question[:answer], :at => [20, cursor]
+            stroke_ellipse [-32, cursor - 13], 20, 10
+            font 'Helvetica Inserat'
+            value =
+            text_box question[:daily_double] ? "DD" : question[:value].to_s,
+              :at => [-42, cursor - 9],
+              :align => :center,
+              :width => 20
+
+            font 'ITC Korinna', :style => :bold, :size => 9
+            text question[:clue].upcase
+
+            font 'Chalkboard', :style => :bold, :size => 10
+            text_box question[:answer].upcase, :at => [20, cursor - 1]
           }
         }
       end
