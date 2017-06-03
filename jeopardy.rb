@@ -7,20 +7,19 @@ class TrueClass; def to_i; 1; end; end;
 
 class ScrapeException < Exception; end;
 
-db = SQLite3::Database.new "jeopardy.sqlite3"
+$db = SQLite3::Database.new "jeopardy.sqlite3"
 
 # remove this if you really want to fully re-scrape
 # db.execute('delete from game')
 # db.execute('delete from category')
 # db.execute('delete from question')
 # db.execute('delete from final_jeopardy')
-exit
 
 def strip_answer_tags(answer)
   Nokogiri::HTML(answer).text.gsub('\\', '')
 end
 
-1.upto(5654) { |game_id| # 5654 episodes
+def scrape(game_id)
   begin
     doc = Nokogiri::HTML(open("games/game_#{game_id}.html"))
 
@@ -32,7 +31,7 @@ end
 
     game_date = Date.parse(title)
 
-    db.execute('INSERT INTO GAME VALUES (?, ?)',
+    $db.execute('INSERT INTO GAME VALUES (?, ?)',
       game_id,
       game_date.to_time.to_i
     )
@@ -49,12 +48,12 @@ end
       # get all categories
       category_names = round.css('td.category_name').map { |td| td.text }
       category_ids = category_names.map { |category|
-        db.execute('INSERT INTO CATEGORY VALUES (null, ?, ?, ?)',
+        $db.execute('INSERT INTO CATEGORY VALUES (null, ?, ?, ?)',
           game_id,
           category,
           multiplier # round (1 or 2)
         )
-        db.last_insert_row_id
+        $db.last_insert_row_id
       }
       categories = Hash[category_names.zip category_ids]
 
@@ -78,7 +77,7 @@ end
         # get our category id
         category_id = categories[category_names[clue_idx % 6]]
 
-        db.execute('INSERT INTO QUESTION VALUES (null, ?, ?, ?, ?, ?, ?, ?)',
+        $db.execute('INSERT INTO QUESTION VALUES (null, ?, ?, ?, ?, ?, ?, ?)',
           game_id,
           category_id,
           values[(clue_idx / 6).floor] * multiplier, # value of question
@@ -98,7 +97,7 @@ end
       ).captures.first)
       final_round_clue = final_round_table.css('td.clue_text').text
 
-      db.execute('INSERT INTO FINAL_JEOPARDY VALUES (?, ?, ?)',
+      $db.execute('INSERT INTO FINAL_JEOPARDY VALUES (?, ?, ?)',
         game_id,
         final_round_clue,
         final_round_answer
@@ -107,4 +106,4 @@ end
   rescue ScrapeException => exception
     puts exception.message
   end
-}
+end
