@@ -111,8 +111,10 @@ def print_game(game_id)
       end
     }
 
-    print_category(rnd, 720, category_cards.shift) if (not category_cards.empty?)
-    print_category(rnd, 340, category_cards.shift) if (not category_cards.empty?)
+    if (not category_cards.empty?)
+      rnd.start_new_page
+      print_category(rnd, 720, category_cards.shift)
+    end
   }
 
   rnd1.render_file "cards/game_#{game_id}_round1.pdf"
