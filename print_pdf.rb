@@ -240,5 +240,5 @@ def print_question_side(pdf, left_edge, top_edge, final, game_date)
   }
 end
 
-# print_games((5650..5657).to_a)
-print_final_jeopardies((100..320).to_a)
+# print_games((1..5657).to_a)
+# print_final_jeopardies((1..5657).to_a)
