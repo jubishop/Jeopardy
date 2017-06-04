@@ -4,6 +4,11 @@ require 'sqlite3'
 Prawn::Font::AFM.hide_m17n_warning = true
 
 class Numeric; def to_bool; self != 0; end; end;
+class String
+  def jeopardy_upcase
+    self.upcase.gsub(/(\d+)S/, '\1s')
+  end
+end
 
 module Prawn
   class Document
@@ -41,7 +46,7 @@ def print_category(rnd, box_y, category)
 end
 
 def print_games(game_ids)
-  games = *$db.execute("SELECT * FROM GAME WHERE ID IN (#{game_ids.join(', ')})")
+  games = $db.execute("SELECT * FROM GAME WHERE ID IN (#{game_ids.join(', ')})")
 
   rnd1 = Prawn::Document.newWithFonts
   rnd2 = Prawn::Document.newWithFonts
@@ -108,10 +113,10 @@ def print_game(game_id, game_date, rnd1, rnd2)
                 :width => 24
 
               rnd.font 'ITC Korinna', :style => :bold, :size => 9
-              rnd.text question[:clue].upcase
+              rnd.text question[:clue].jeopardy_upcase
 
               rnd.font 'Chalkboard', :style => :bold, :size => 10
-              rnd.text_box question[:answer].upcase, :at => [20, rnd.cursor - 1]
+              rnd.text_box question[:answer].jeopardy_upcase, :at => [20, rnd.cursor - 1]
             }
           }
           rnd.font 'Courgette', :size => 10
@@ -145,37 +150,95 @@ def print_game(game_id, game_date, rnd1, rnd2)
 end
 
 def print_final_jeopardies(game_ids)
-  finals = *$db.execute("SELECT * FROM FINAL_JEOPARDY WHERE GAME_ID IN (#{game_ids.join(', ')})").map { |final|
-    { :category => final[1], :clue => final[2], :answer => final[3] }
+  games = $db.execute("SELECT * FROM GAME WHERE ID IN (#{game_ids.join(', ')})").to_h
+
+  finals = $db.execute("SELECT * FROM FINAL_JEOPARDY WHERE GAME_ID IN (#{game_ids.join(', ')})").map { |final|
+    { :game_id => final[0], :category => final[1], :clue => final[2], :answer => final[3] }
   }
 
-  Prawn::Document.generateWithFonts("cards/game_#{game_id}_final.pdf") { |pdf|
-    pdf.bounding_box([40, 720], :width => 460, :height => 400) {
-      pdf.font 'ITC Korinna', :style => :bold, :size => 24
-      pdf.text_box final_clue.upcase,
+  Prawn::Document.generateWithFonts("cards/games_final.pdf") { |pdf|
+    left_edges = [20, 296]
+    finals.each_index { |final_index|
+      pdf.start_new_page if (final_index > 0 && final_index % 3 == 0)
+
+      final = finals[final_index]
+      game_date = Time.at(games[final[:game_id]]).to_datetime
+
+      if (final_index % 3 == 0)
+        print_question_side(pdf, 20, 710, final, game_date)
+      elsif (final_index % 3 == 1)
+        print_question_side(pdf, 296, 710, final, game_date)
+      else
+        pdf.rotate(-90, :origin => [270, 200]) {
+          print_question_side(pdf, 200, 380, final, game_date)
+        }
+      end
+
+      if (final_index % 3 == 2 || final_index == finals.size - 1)
+        pdf.start_new_page
+        (final_index % 3 + 1).times {
+          if (final_index % 3 == 0)
+            print_answer_side(pdf, 20, 710, finals[final_index])
+          elsif (final_index % 3 == 1)
+            print_answer_side(pdf, 296, 710, finals[final_index])
+          else
+            pdf.rotate(-90, :origin => [270, 200]) {
+              print_answer_side(pdf, 200, 380, finals[final_index])
+            }
+          end
+          final_index -= 1
+        }
+      end
+    }
+  }
+end
+
+def print_answer_side(pdf, left_edge, top_edge, final)
+  pdf.bounding_box([left_edge, top_edge], :width => 216, :height => 360) {
+    pdf.bounding_box([20, 340], :width => 176, :height => 320) {
+      pdf.font 'Chalkboard', :style => :bold, :size => 24
+      pdf.text_box final[:answer].jeopardy_upcase,
+        :align => :center,
+        :valign => :center
+    }
+  }
+end
+
+def print_question_side(pdf, left_edge, top_edge, final, game_date)
+  pdf.bounding_box([left_edge, top_edge], :width => 216, :height => 360) {
+    pdf.line_width = 1
+    pdf.stroke_color '999999'
+    pdf.stroke_bounds
+    pdf.stroke_color '000000'
+
+    pdf.bounding_box([10, 350], :width => 196, :height => 200) {
+      pdf.font 'ITC Korinna', :style => :bold, :size => 16
+      pdf.text_box final[:clue].jeopardy_upcase,
         :align => :center,
         :valign => :center
     }
 
-    pdf.line_width = 40
-    pdf.stroke { pdf.horizontal_line 0, 540, :at => 200 }
+    pdf.line_width = 20
+    pdf.stroke { pdf.horizontal_line 0, 216, :at => 120 }
 
-    pdf.font 'Helvetica Inserat', :size => 36
-    pdf.text_box final_category,
-      :at => [0, 100],
-      :align => :center
+    pdf.bounding_box([10, 110], :width => 196, :height => 90) {
+      pdf.font 'Helvetica Inserat', :size => 24
+      pdf.text_box final[:category].jeopardy_upcase,
+        :align => :center,
+        :valign => :center
+    }
 
-    pdf.image "jeopardy_logo.png", :at => [20, 25], :width => 60
+    pdf.image "jeopardy_logo.png", :at => [10, 20], :width => 50
 
     pdf.font 'Courgette', :size => 10
     pdf.fill_color '666666'
     pdf.text_box game_date.strftime('%B %-d, %Y'),
       :at => [0, 20],
       :align => :right,
-      :width => 540
+      :width => 206
     pdf.fill_color '000000'
   }
 end
 
-print_games((5650..5657).to_a)
-# print_final_jeopardies((101..200).to_a)
+# print_games((5650..5657).to_a)
+print_final_jeopardies((100..320).to_a)
