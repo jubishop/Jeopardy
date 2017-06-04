@@ -5,16 +5,39 @@ Prawn::Font::AFM.hide_m17n_warning = true
 
 class Numeric; def to_bool; self != 0; end; end;
 
+module Prawn
+  class Document
+    def self.newWithFonts(options = {}, &block)
+      new(options) {
+        font_families.update(
+          'Chalkboard' => { :bold => 'fonts/Chalkboard-Bold.ttf'},
+          'Courgette' => { :normal => 'fonts/Courgette-Regular.ttf' },
+          'Helvetica Inserat' => { :normal => 'fonts/Helvetica Inserat LT.ttf' },
+          'ITC Korinna' => {
+            :normal => 'fonts/Korinna Regular.ttf',
+            :bold => 'fonts/Korinna Bold.ttf'
+          })
+        block.call(self) if block
+      }
+    end
+
+    def self.generateWithFonts(filename, options = {}, &block)
+      pdf = newWithFonts(options, &block)
+      pdf.render_file(filename)
+    end
+  end
+end
+
 $db = SQLite3::Database.new "jeopardy.sqlite3"
 
 def print_category(rnd, box_y, category)
-  rnd.bounding_box([20, box_y], :width => 500, :height => 340) do
+  rnd.bounding_box([20, box_y], :width => 500, :height => 340) {
     rnd.font 'Helvetica Inserat', :size => 64
     rnd.text_box category,
       :at => [0, 340],
       :align => :center,
       :valign => :center
-  end
+  }
 end
 
 def print_game(game_id)
@@ -41,21 +64,10 @@ def print_game(game_id)
     [id, {:name => category, :round => round}]
   }.to_h
 
-  rnd1 = Prawn::Document.new
-  rnd2 = Prawn::Document.new
+  rnd1 = Prawn::Document.newWithFonts
+  rnd2 = Prawn::Document.newWithFonts
 
-  [rnd1, rnd2].each { |rnd|
-    rnd.font_families.update(
-      'Chalkboard' => { :bold => 'fonts/Chalkboard-Bold.ttf'},
-      'Courgette' => { :normal => 'fonts/Courgette-Regular.ttf' },
-      'Helvetica Inserat' => { :normal => 'fonts/Helvetica Inserat LT.ttf' },
-      'ITC Korinna' => {
-        :normal => 'fonts/Korinna Regular.ttf',
-        :bold => 'fonts/Korinna Bold.ttf'
-      }
-    )
-  }
-
+  # print round 1 and round 2 pdfs
   [[questions_round1, rnd1], [questions_round2, rnd2]].each { |questions_by_category, rnd|
     box_count = 0
     category_cards = Array.new
@@ -66,11 +78,11 @@ def print_game(game_id)
       rnd.start_new_page if box_count > 1 and box_count.odd?
 
       box_base_y = box_count.odd? ? 720 : 340
-      rnd.bounding_box([20, box_base_y], :width => 500, :height => 340) do
+      rnd.bounding_box([20, box_base_y], :width => 500, :height => 340) {
         rnd.stroke_color '999999'
         rnd.stroke_bounds
         rnd.stroke_color '000000'
-        rnd.bounding_box([70, 330], :width => 410, :height => 325) do
+        rnd.bounding_box([70, 330], :width => 410, :height => 325) {
           questions.each { |question|
             rnd.pad(15) {
               rnd.fill_color 'cccccc'
@@ -99,8 +111,8 @@ def print_game(game_id)
           rnd.fill_color '000000'
 
           rnd.image "jeopardy_logo.png", :at => [-50, 30], :width => 60
-        end
-      end
+        }
+      }
 
       category_cards.push(categories_by_id[id][:name])
       if (category_cards.length == 2)
@@ -119,6 +131,41 @@ def print_game(game_id)
 
   rnd1.render_file "cards/game_#{game_id}_round1.pdf"
   rnd2.render_file "cards/game_#{game_id}_round2.pdf"
+
+  # print final jeopardy
+  # Prawn::Document.generateWithFonts("cards/game_#{game_id}_final.pdf") { |pdf|
+  #   pdf.bounding_box([40, 720], :width => 460, :height => 400) {
+  #     pdf.font 'ITC Korinna', :style => :bold, :size => 24
+  #     pdf.text_box final_clue.upcase,
+  #       :align => :center,
+  #       :valign => :center
+  #   }
+  #
+  #   pdf.line_width = 40
+  #   pdf.stroke { pdf.horizontal_line 0, 540, :at => 200 }
+  #
+  #   pdf.font 'Helvetica Inserat', :size => 36
+  #   pdf.text_box final_category,
+  #     :at => [0, 100],
+  #     :align => :center
+  #
+  #   pdf.image "jeopardy_logo.png", :at => [20, 25], :width => 60
+  #
+  #   pdf.font 'Courgette', :size => 10
+  #   pdf.fill_color '666666'
+  #   pdf.text_box game_date.strftime('%B %-d, %Y'),
+  #     :at => [0, 20],
+  #     :align => :right,
+  #     :width => 540
+  #   pdf.fill_color '000000'
+  # }
 end
 
-print_game(5654)
+def print_final_jeopardies(game_ids)
+  finals = *$db.execute("SELECT * FROM FINAL_JEOPARDY WHERE GAME_ID IN (#{game_ids.join(', ')})").map { |final|
+    { :category => final[1], :clue => final[2], :answer => final[3] }
+  }
+end
+
+# print_game(5656)
+print_final_jeopardies((101..200).to_a)

@@ -9,8 +9,8 @@ class ScrapeException < Exception; end;
 
 $db = SQLite3::Database.new "jeopardy.sqlite3"
 
-def strip_answer_tags(answer)
-  Nokogiri::HTML(answer).text.gsub('\\', '')
+def strip_tags(string)
+  Nokogiri::HTML(string).text.gsub('\\', '')
 end
 
 def scrape(game_id)
@@ -60,10 +60,10 @@ def scrape(game_id)
         next if (answer_div.empty?) # question never called
 
         # get the answer and the clue
-        answer = strip_answer_tags(
+        answer = strip_tags(
           answer_div.first['onmouseover'].match('<em class="correct_response">(.+?)</em>').captures.first
         )
-        clue = clue_td.css('td.clue_text').first.text
+        clue = strip_tags(clue_td.css('td.clue_text').first.text)
 
         # detect if this clue is a daily double
         daily_double = !clue_td.css('td.clue_value_daily_double').empty?
@@ -86,13 +86,15 @@ def scrape(game_id)
     final_round_table = doc.css('table.final_round')
     unless (final_round_table.empty?)
       final_round_div = final_round_table.css('div')
-      final_round_answer = strip_answer_tags(final_round_div.first['onmouseover'].match(
+      final_round_category = final_round_table.css('td.category_name').text
+      final_round_answer = strip_tags(final_round_div.first['onmouseover'].match(
         '<em class=\\\"correct_response\\\">(.+?)</em>'
       ).captures.first)
-      final_round_clue = final_round_table.css('td.clue_text').text
+      final_round_clue = strip_tags(final_round_table.css('td.clue_text').text)
 
-      $db.execute('INSERT INTO FINAL_JEOPARDY VALUES (?, ?, ?)',
+      $db.execute('INSERT INTO FINAL_JEOPARDY VALUES (?, ?, ?, ?)',
         game_id,
+        final_round_category,
         final_round_clue,
         final_round_answer
       )
@@ -101,3 +103,5 @@ def scrape(game_id)
     puts exception.message
   end
 end
+
+1.upto(5657) { |game_id| scrape(game_id) }
