@@ -3,6 +3,8 @@ require 'sqlite3'
 
 Prawn::Font::AFM.hide_m17n_warning = true
 
+# TODO: Skip any category with a question containing "seen here"
+
 class Numeric; def to_bool; self != 0; end; end;
 class String
   def jeopardy_upcase
@@ -89,12 +91,25 @@ def print_game(game_id, game_date, rnd1, rnd2)
     box_count = 0
     category_cards = Array.new
     questions_by_category.each { |id, questions|
-      next if (questions.length < 5)
+      next if questions.length < 5
+      next if questions.index { |question| question[:clue].match(/seen here/i) }
+      next if questions.index { |question| question[:clue].match(/\(.*?clue.*?\)/i) }
+      questions.each { |question|
+        question[:clue].gsub!('Â', '')
+        question[:clue].gsub!('â', '')
+      }
+
+      chars_match = /^[\p{Latin}|0-9|\s|'|&|\-|\"|\,|\.|\/|\!|\;|\:|\_|\?|\(|\)|\$|\#|\%|\+|\=|\‑|\¿|\°|\@|\¡|\*]+$/
+      tt = questions.index { |question| question[:clue].match(chars_match).nil? }
+      if (tt)
+        puts "Bad chars: #{questions[tt][:clue]}"
+        next
+      end
 
       box_count += 1
       rnd.start_new_page if box_count > 1 and box_count.odd?
 
-      box_base_y = box_count.odd? ? 720 : 340
+      box_base_y = box_count.odd? ? 710 : 370
       rnd.bounding_box([20, box_base_y], :width => 500, :height => 340) {
         rnd.stroke_color '999999'
         rnd.stroke_bounds
@@ -165,12 +180,12 @@ def print_final_jeopardies(game_ids)
       game_date = Time.at(games[final[:game_id]]).to_datetime
 
       if (final_index % 3 == 0)
-        print_question_side(pdf, 20, 710, final, game_date)
+        print_question_side(pdf, 50, 710, final, game_date)
       elsif (final_index % 3 == 1)
-        print_question_side(pdf, 296, 710, final, game_date)
+        print_question_side(pdf, 266, 710, final, game_date)
       else
         pdf.rotate(-90, :origin => [270, 200]) {
-          print_question_side(pdf, 200, 380, final, game_date)
+          print_question_side(pdf, 120, 380, final, game_date)
         }
       end
 
@@ -240,5 +255,15 @@ def print_question_side(pdf, left_edge, top_edge, final, game_date)
   }
 end
 
-# print_games((1..5657).to_a)
-# print_final_jeopardies((1..5657).to_a)
+raise "Usage: ruby print_pdf.rb <start_date> <end_date>" unless ARGV.length == 2
+
+start_date = DateTime.strptime(ARGV[0], "%m/%d/%Y")
+end_date = DateTime.strptime(ARGV[1], "%m/%d/%Y")
+
+game_ids = $db.execute("SELECT * FROM GAME WHERE
+  DATE > #{start_date.to_time.to_i} AND
+  DATE < #{end_date.to_time.to_i}").map { |game| game[0] }
+puts "Printing #{game_ids.length} games"
+
+print_games(game_ids)
+print_final_jeopardies(game_ids)
