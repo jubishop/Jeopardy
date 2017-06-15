@@ -40,11 +40,25 @@ class JeopardyQuestionPrinter
 
   Q_WIDTH = 432
   Q_HEIGHT = 288
-  TEXT_LEFT_MARGIN = 8
-  TEXT_RIGHT_MARGIN = 8
-  CIRCLE_WIDTH = 36
+  Q_LEFT_MARGIN = 72
+  Q_TOP_MARGIN = 72
+
+  TEXT_LEFT_MARGIN = 10
+  TEXT_RIGHT_MARGIN = 10
+
+  CIRCLE_WIDTH = 32
   CIRCLE_HEIGHT = 20
-  CIRCLE_LEFT_MARGIN = 8
+  CIRCLE_LEFT_MARGIN = 10
+  CIRCLE_TOP_MARGIN = 2
+
+  QUESTION_FONT_SIZE = 8
+  ANSWER_FONT_SIZE = 9
+  ANSWER_INDENT = 24
+  JEOPARDY_LOGO_WIDTH = 60
+
+  CATEGORY_HORIZONTAL_MARGIN = 36
+  CATEGORY_VERTICAL_MARGIN = 18
+  CATEGORY_FONT_SIZE = 42
 
   FINAL_WIDTH = 360
   FINAL_HEIGHT = 216
@@ -79,10 +93,12 @@ class JeopardyQuestionPrinter
     Prawn::Document.generateWithFonts("cards/games_final.pdf") { |pdf|
       left_edges = [20, 296]
       finals.each_index { |final_index|
-        pdf.start_new_page if (final_index > 0 && final_index % 3 == 0)
-
         final = finals[final_index]
         game_date = Time.at(@games[final[:game_id]]).to_datetime
+
+        # TODO: Skip final jeopardy questions that are crap like "clue crew"
+
+        pdf.start_new_page if (final_index > 0 && final_index % 3 == 0)
 
         if (final_index % 3 == 0)
           print_question_side(pdf, 50, 710, final, game_date)
@@ -144,10 +160,11 @@ class JeopardyQuestionPrinter
       questions_by_category.each { |id, questions|
         next if questions.length < 5
         next if questions.index { |question| question[:clue].match(/seen here/i) }
-        next if questions.index { |question| question[:clue].match(/\(.*?presents.*?\)/i) }
-        next if questions.index { |question| question[:clue].match(/\(.*?clue.*?\)/i) }
-        next if questions.index { |question| question[:clue].match(/\(.*?i\'m.*?\)/i) }
-        next if questions.index { |question| question[:clue].match(/\(.*?reads.*?\)/i) }
+        next if questions.index { |question| question[:clue].match(/^\(.*?presents.*?\)/i) }
+        next if questions.index { |question| question[:clue].match(/^\(.*?clue.*?\)/i) }
+        next if questions.index { |question| question[:clue].match(/^\(.*?i\'m.*?\)/i) }
+        next if questions.index { |question| question[:clue].match(/^\(.*?reads.*?\)/i) }
+        next if questions.index { |question| question[:clue].match(/^\(.*?reports.*?\)/i) }
         questions.each { |question|
           question[:clue].gsub!('Â', '')
           question[:clue].gsub!('â', '')
@@ -160,71 +177,21 @@ class JeopardyQuestionPrinter
         box_count += 1
         rnd.start_new_page if box_count > 1 and box_count.odd?
 
-        box_base_y = box_count.odd? ? 710 : 370
-        rnd.bounding_box([0, box_base_y], :width => Q_WIDTH, :height => Q_HEIGHT) {
-          rnd.stroke_color '999999'
-          rnd.stroke_bounds
-          rnd.stroke_color '000000'
-          rnd.bounding_box([TEXT_LEFT_MARGIN + CIRCLE_WIDTH + CIRCLE_LEFT_MARGIN, Q_HEIGHT],
-            :width => Q_WIDTH - CIRCLE_WIDTH - CIRCLE_LEFT_MARGIN - TEXT_LEFT_MARGIN - TEXT_RIGHT_MARGIN,
-            :height => Q_HEIGHT) {
-            questions.each { |question|
-              rnd.pad(12) {
-                # circle with value
-                rnd.fill_color 'cccccc'
-                rnd.fill_ellipse [-TEXT_LEFT_MARGIN - CIRCLE_WIDTH / 2, rnd.cursor - CIRCLE_HEIGHT / 2 - 1],
-                  CIRCLE_WIDTH / 2, CIRCLE_HEIGHT / 2
-                rnd.stroke_ellipse [-TEXT_LEFT_MARGIN - CIRCLE_WIDTH / 2, rnd.cursor - CIRCLE_HEIGHT / 2 - 1],
-                  CIRCLE_WIDTH / 2, CIRCLE_HEIGHT / 2
-                rnd.fill_color '000000'
-                rnd.font 'Helvetica Inserat', :size => 12
-                rnd.text_box question[:value].to_s,
-                  :at => [-TEXT_LEFT_MARGIN - CIRCLE_WIDTH, rnd.cursor - 1],
-                  :align => :center,
-                  :valign => :center,
-                  :width => CIRCLE_WIDTH,
-                  :height => CIRCLE_HEIGHT
+        box_base_y = box_count.odd? ? rnd.bounds.height - Q_TOP_MARGIN : rnd.bounds.height - Q_TOP_MARGIN - Q_HEIGHT
+        print_question_card(rnd, box_base_y, questions)
 
-                # clue
-                rnd.font 'ITC Korinna', :style => :bold, :size => 8
-                rnd.text question[:clue].jeopardy_upcase
-
-                # answer
-                rnd.font 'Chalkboard', :style => :bold, :size => 9
-                rnd.text_box question[:answer].jeopardy_upcase, :at => [20, rnd.cursor - 1]
-              }
-            }
-            rnd.image "jeopardy_logo.png", :at => [rnd.bounds.width - 60, 25], :width => 60
-
-            # we don't want to waste printing groups that don't fit
-            if (rnd.cursor < 25)
-              rnd.render_file "cards/games_error.pdf"
-              raise "text too long: #{rnd.cursor}"
-            end
-
-            # rnd.font 'Courgette', :size => 10
-            # rnd.fill_color '666666'
-            # rnd.text_box game_date.strftime('%B %-d, %Y'),
-            #   :at => [10, 25],
-            #   :align => :right,
-            #   :width => 400
-            # rnd.fill_color '000000'
-            #
-          }
-        }
-
-        category_cards.push(categories_by_id[id][:name])
+        category_cards.push(categories_by_id[id])
         if (category_cards.length == 2)
           rnd.start_new_page
-          print_category(rnd, 720, category_cards.first)
-          print_category(rnd, 340, category_cards.last)
+          print_category(rnd, rnd.bounds.height - Q_TOP_MARGIN, category_cards.first, game_date)
+          print_category(rnd, rnd.bounds.height - Q_TOP_MARGIN - Q_HEIGHT, category_cards.last, game_date)
           category_cards.clear
         end
       }
 
       if (not category_cards.empty?)
         rnd.start_new_page
-        print_category(rnd, 720, category_cards.shift)
+        print_category(rnd, 720, category_cards.shift, game_date)
       end
     }
 
@@ -232,17 +199,87 @@ class JeopardyQuestionPrinter
   end
 
   # print_game helpers
-  def print_category(rnd, box_y, category)
-    rnd.bounding_box([20, box_y], :width => Q_WIDTH, :height => Q_HEIGHT) {
-      rnd.font 'Helvetica Inserat', :size => 64
-      rnd.text_box category,
-        :at => [0, 340],
-        :align => :center,
-        :valign => :center
+  def print_category(rnd, box_y, category, game_date)
+    rnd.bounding_box([Q_LEFT_MARGIN, box_y], :width => Q_WIDTH, :height => Q_HEIGHT) {
+      rnd.stroke_bounds
+      rnd.bounding_box([CATEGORY_HORIZONTAL_MARGIN, Q_HEIGHT - CATEGORY_VERTICAL_MARGIN],
+        :width => Q_WIDTH - CATEGORY_HORIZONTAL_MARGIN * 2,
+        :height => Q_HEIGHT - CATEGORY_VERTICAL_MARGIN * 2) {
+        rnd.font 'Helvetica Inserat', :size => CATEGORY_FONT_SIZE
+        rnd.text_box category[:name],
+          :at => [0, rnd.bounds.height],
+          :align => :center,
+          :valign => :center
+
+        height = rnd.height_of category[:name]
+        if (height > rnd.bounds.height)
+          puts "Tall category: #{category}, height of #{height}. page: #{rnd.page_number}"
+        end
+      }
+
+      rnd.font 'Courgette', :size => 10
+      rnd.fill_color '666666'
+      rnd.text_box game_date.strftime('%B %-d, %Y'),
+        :at => [0, 20],
+        :align => :right,
+        :width => Q_WIDTH - CATEGORY_HORIZONTAL_MARGIN / 2
+      rnd.fill_color '000000'
     }
   end
 
-  # printFinalyJeopardy helpers
+  def print_question_card(rnd, box_y, questions)
+    rnd.bounding_box([Q_LEFT_MARGIN, box_y], :width => Q_WIDTH, :height => Q_HEIGHT) {
+      rnd.stroke_color '999999'
+      rnd.stroke_bounds
+      rnd.stroke_color '000000'
+      rnd.bounding_box([TEXT_LEFT_MARGIN + CIRCLE_WIDTH + CIRCLE_LEFT_MARGIN, Q_HEIGHT],
+        :width => Q_WIDTH - CIRCLE_WIDTH - CIRCLE_LEFT_MARGIN - TEXT_LEFT_MARGIN - TEXT_RIGHT_MARGIN,
+        :height => Q_HEIGHT) {
+        questions.each { |question|
+          rnd.pad(12) {
+            # circle with value
+            rnd.fill_color 'cccccc'
+            rnd.fill_ellipse [
+                -TEXT_LEFT_MARGIN - CIRCLE_WIDTH / 2,
+                rnd.cursor - CIRCLE_HEIGHT / 2 - CIRCLE_TOP_MARGIN
+              ],
+              CIRCLE_WIDTH / 2, CIRCLE_HEIGHT / 2
+            rnd.stroke_ellipse [
+                -TEXT_LEFT_MARGIN - CIRCLE_WIDTH / 2,
+                rnd.cursor - CIRCLE_HEIGHT / 2 - CIRCLE_TOP_MARGIN
+              ],
+              CIRCLE_WIDTH / 2, CIRCLE_HEIGHT / 2
+            rnd.fill_color '000000'
+            rnd.font 'Helvetica Inserat', :size => 12
+            rnd.text_box question[:value].to_s,
+              :at => [-TEXT_LEFT_MARGIN - CIRCLE_WIDTH, rnd.cursor - CIRCLE_TOP_MARGIN],
+              :align => :center,
+              :valign => :center,
+              :width => CIRCLE_WIDTH,
+              :height => CIRCLE_HEIGHT
+
+            # clue
+            rnd.font 'ITC Korinna', :style => :bold, :size => QUESTION_FONT_SIZE
+            rnd.text question[:clue].jeopardy_upcase
+
+            # answer
+            rnd.font 'Chalkboard', :style => :bold, :size => ANSWER_FONT_SIZE
+            rnd.text_box question[:answer].jeopardy_upcase, :at => [ANSWER_INDENT, rnd.cursor]
+          }
+        }
+        rnd.image "jeopardy_logo.png",
+          :at => [rnd.bounds.width - JEOPARDY_LOGO_WIDTH, JEOPARDY_LOGO_WIDTH / 2],
+          :width => JEOPARDY_LOGO_WIDTH
+
+        # we don't want to waste printing groups that don't fit
+        if (rnd.cursor < 20)
+          puts "Long text, cursor at: #{rnd.cursor}. page: #{rnd.page_number}, round #{questions.first[:round]}"
+        end
+      }
+    }
+  end
+
+  # printFinalJeopardy helpers
   def print_answer_side(pdf, left_edge, top_edge, final)
     pdf.bounding_box([left_edge, top_edge], :width => 216, :height => 360) {
       pdf.bounding_box([20, 340], :width => 176, :height => 320) {
@@ -266,6 +303,10 @@ class JeopardyQuestionPrinter
         pdf.text_box final[:clue].jeopardy_upcase,
           :align => :center,
           :valign => :center
+        height = pdf.height_of final[:clue].jeopardy_upcase
+        if (height > 180)
+          puts "#{height}: #{pdf.page_number}"
+        end
       }
 
       pdf.line_width = 20
@@ -291,18 +332,26 @@ class JeopardyQuestionPrinter
   end
 end
 
-raise "Usage: ruby print_pdf.rb <start_date> <end_date>" unless ARGV.length == 2
+raise "Usage: ruby print_pdf.rb <start_date> [<end_date>]" unless ARGV.length == 1 or ARGV.length == 2
+
 
 db = SQLite3::Database.new "jeopardy.sqlite3"
 
-start_date = DateTime.strptime(ARGV[0], "%m/%d/%Y")
-end_date = DateTime.strptime(ARGV[1], "%m/%d/%Y")
+start_date = DateTime.strptime(ARGV[0], "%m/%d/%Y") + (7/24.0)
 
-game_ids = db.execute("SELECT * FROM GAME WHERE
-  DATE > #{start_date.to_time.to_i} AND
-  DATE < #{end_date.to_time.to_i}").map { |game| game[0] }
-puts "Printing #{game_ids.length} games"
+if (ARGV.length == 2)
+  end_date = DateTime.strptime(ARGV[1], "%m/%d/%Y") + (7/24.0)
+  game_ids = db.execute("SELECT * FROM GAME WHERE
+    DATE >= #{start_date.to_time.to_i} AND
+    DATE <= #{end_date.to_time.to_i}").map { |game| game[0] }
+  puts "Printing #{game_ids.length} games"
+else
+  game = db.execute("SELECT * FROM GAME WHERE DATE = ?", start_date.to_time.to_i)
+  game_ids = [game[0]]
+end
+
+# TODO: Mash all questions together so that every page is full, not split by game_id
 
 jeopardyPrinter = JeopardyQuestionPrinter.new(db, game_ids)
-jeopardyPrinter.printGames
-# jeopardyPrinter.printFinalJeopardies
+# jeopardyPrinter.printGames
+jeopardyPrinter.printFinalJeopardies
