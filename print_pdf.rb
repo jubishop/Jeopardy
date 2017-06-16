@@ -11,9 +11,8 @@ if (ARGV.length == 2)
   end_date = Date.strptime(ARGV[1], "%m/%d/%Y")
   game_ids = db.execute("SELECT * FROM GAME WHERE
     DATE >= #{start_date.to_time.utc.to_i} AND
-    DATE <= #{end_date.to_time.utc.to_i}").map { |game| puts game[1]; game[0] }
+    DATE <= #{end_date.to_time.utc.to_i}").map { |game| game[0] }
 else
-  puts start_date.to_time.to_i
   game = db.execute("SELECT * FROM GAME WHERE DATE = ?", start_date.to_time.to_i)
   if (game.empty?)
     puts "No game of Jeopardy was played on #{ARGV[0]}"
