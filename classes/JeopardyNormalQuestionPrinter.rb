@@ -1,7 +1,7 @@
+require 'prawn'
+
 require_relative './JeopardyQuestionPrinter.rb'
 require_relative './Toggle.rb'
-
-# TODO: Skip answers with international chars
 
 class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
   PAPER_MARGIN = 10
@@ -61,44 +61,28 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
     rnd1 = Prawn::Document.newWithFonts(:left_margin => PAPER_MARGIN, :right_margin => PAPER_MARGIN)
     rnd2 = Prawn::Document.newWithFonts(:left_margin => PAPER_MARGIN, :right_margin => PAPER_MARGIN)
 
-    y_pos = Toggle.new(rnd1.bounds.height - Q_TOP_MARGIN, rnd1.bounds.height - Q_TOP_MARGIN - Q_HEIGHT)
-
-    printed_categories = Array.new
-    until (@questions_round1.empty?)
-      category_id, questions = @questions_round1.shift
-      if print_card(rnd1, y_pos.value, questions)
-        y_pos.toggle
-        printed_categories.push(category_id)
-      end
-      if (printed_categories.length == 2)
-        rnd1.start_new_page
-        print_category(rnd1, y_pos.first, printed_categories.first)
-        print_category(rnd1, y_pos.last, printed_categories.last)
-        printed_categories.clear
-        unless (@questions_round1.empty?)
-          rnd1.start_new_page
+    print_a_card = lambda { |pdf, questions|
+      y_pos = Toggle.new(pdf.bounds.height - Q_TOP_MARGIN, pdf.bounds.height - Q_TOP_MARGIN - Q_HEIGHT)
+      printed_categories = Array.new
+      until (questions.empty?)
+        category_id, card_questions = questions.shift
+        if print_card(pdf, y_pos.value, card_questions)
+          y_pos.toggle
+          printed_categories.push(category_id)
+        end
+        if (printed_categories.length == 2)
+          pdf.start_new_page
+          print_category(pdf, y_pos.first, printed_categories.first)
+          print_category(pdf, y_pos.last, printed_categories.last)
+          printed_categories.clear
+          unless (questions.empty?)
+            pdf.start_new_page
+          end
         end
       end
-    end
-
-    # print_card(rnd1, rnd1.bounds.height - Q_TOP_MARGIN, *@questions_round1.shift)
-    # print_card(rnd1, rnd1.bounds.height - Q_TOP_MARGIN - Q_HEIGHT, *@questions_round1.shift)
-    # @questions_round1.each_pair { |category_id, questions|
-    #   rnd1.start_new_page
-    #   print_card(rnd1, category_id, questions)
-    # }
-    # @questions_round2.each_pair { |category_id, questions|
-    #   rnd2.start_new_page
-    #   print_card(rnd2, category_id, questions)
-    # }
-
-    # @games.each_pair { |game_id, game_date|
-    #   round1_count, round2_count = *print_game(game_id, game_date)
-    #   unless (game_id == @games.keys.last)
-    #     @rnd1.start_new_page if (round1_count > 0)
-    #     @rnd2.start_new_page if (round2_count > 0)
-    #   end
-    # }
+    }
+    print_a_card.call(rnd1, @questions_round1)
+    print_a_card.call(rnd2, @questions_round2)
 
     rnd1.render_file "cards/games_round1.pdf"
     rnd2.render_file "cards/games_round2.pdf"
@@ -116,16 +100,16 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
     return false if questions.index { |question| question[:clue].match(/^\(.*?clue.*?\)/i) }
     return false if questions.index { |question| question[:clue].match(/^\(.*?i\'m.*?\)/i) }
     return false if questions.index { |question| question[:clue].match(/^\(.*?reads.*?\)/i) }
+    return false if questions.index { |question| question[:clue].match(/^\(.*?shows.*?\)/i) }
     return false if questions.index { |question| question[:clue].match(/^\(.*?reports.*?\)/i) }
 
-    # no international chars
+    # no international chars in clue OR answer
     questions.each { |question|
-      question[:clue].gsub!('Â', '')
-      question[:clue].gsub!('â', '')
+      question[:clue].strip_international
+      question[:answer].strip_international
     }
     chars_match = /^[\p{Latin}|0-9|\s|'|&|\-|\"|\,|\.|\/|\!|\;|\:|\_|\?|\(|\)|\$|\#|\%|\+|\=|\‑|\¿|\°|\@|\¡|\*]+$/
-    tt = questions.index { |question| question[:clue].match(chars_match).nil? }
-    return false if (tt)
+    return false if questions.index { |question| question[:clue].match(chars_match).nil? }
 
     pdf.bounding_box([Q_LEFT_MARGIN, y_pos], :width => Q_WIDTH, :height => Q_HEIGHT) {
       pdf.stroke_color '999999'

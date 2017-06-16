@@ -1,7 +1,14 @@
+require 'sqlite3'
+
 class Numeric; def to_bool; self != 0; end; end;
 class String
   def jeopardy_upcase
     self.upcase.gsub(/(\d+)S/, '\1s')
+  end
+  
+  def strip_international
+    self.gsub!('Â', '')
+    self.gsub!('â', '')
   end
 end
 

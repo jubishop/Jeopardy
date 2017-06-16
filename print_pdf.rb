@@ -43,7 +43,10 @@ else
   game_ids = [game[0]]
 end
 
-require './classes/JeopardyNormalQuestionPrinter.rb'
-jeopardyPrinter = JeopardyNormalQuestionPrinter.new(db, game_ids)
-jeopardyPrinter.printGames
-# jeopardyPrinter.printFinalJeopardies
+# require './classes/JeopardyNormalQuestionPrinter.rb'
+# normalPrinter = JeopardyNormalQuestionPrinter.new(db, game_ids)
+# normalPrinter.printGames
+
+require './classes/JeopardyFinalQuestionPrinter.rb'
+finalPrinter = JeopardyFinalQuestionPrinter.new(db, game_ids)
+finalPrinter.printFinalJeopardies
