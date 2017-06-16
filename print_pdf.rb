@@ -3,8 +3,6 @@ require 'sqlite3'
 
 Prawn::Font::AFM.hide_m17n_warning = true
 
-# TODO: Skip any category with a question containing "seen here"
-
 class Numeric; def to_bool; self != 0; end; end;
 class String
   def jeopardy_upcase
@@ -97,7 +95,6 @@ class JeopardyQuestionPrinter
         game_date = Time.at(@games[final[:game_id]]).to_datetime
 
         # TODO: Skip final jeopardy questions that are crap like "clue crew"
-
         pdf.start_new_page if (final_index > 0 && final_index % 3 == 0)
 
         if (final_index % 3 == 0)
