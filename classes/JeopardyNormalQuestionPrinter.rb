@@ -116,7 +116,6 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
 
     pdf.bounding_box([Q_LEFT_MARGIN, y_pos], :width => Q_WIDTH, :height => Q_HEIGHT) {
       draw_border(pdf)
-
       pdf.bounding_box([TEXT_LEFT_MARGIN + CIRCLE_WIDTH + CIRCLE_LEFT_MARGIN, Q_HEIGHT],
         :width => Q_WIDTH - CIRCLE_WIDTH - CIRCLE_LEFT_MARGIN - TEXT_LEFT_MARGIN - TEXT_RIGHT_MARGIN,
         :height => Q_HEIGHT) {
@@ -168,8 +167,6 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
   def print_category(pdf, y_pos, category_id)
     category = @categories_by_id[category_id]
     pdf.bounding_box([Q_LEFT_MARGIN, y_pos], :width => Q_WIDTH, :height => Q_HEIGHT) {
-      draw_border(pdf)
-
       pdf.bounding_box([CATEGORY_HORIZONTAL_MARGIN, Q_HEIGHT - CATEGORY_VERTICAL_MARGIN],
         :width => Q_WIDTH - CATEGORY_HORIZONTAL_MARGIN * 2,
         :height => Q_HEIGHT - CATEGORY_VERTICAL_MARGIN * 2) {
