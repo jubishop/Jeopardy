@@ -1,30 +1,4 @@
-require 'prawn'
 require 'sqlite3'
-
-Prawn::Font::AFM.hide_m17n_warning = true
-
-module Prawn
-  class Document
-    def self.newWithFonts(options = {}, &block)
-      new(options) {
-        font_families.update(
-          'Chalkboard' => { :bold => 'fonts/Chalkboard-Bold.ttf'},
-          'Courgette' => { :normal => 'fonts/Courgette-Regular.ttf' },
-          'Helvetica Inserat' => { :normal => 'fonts/Helvetica Inserat LT.ttf' },
-          'ITC Korinna' => {
-            :normal => 'fonts/Korinna Regular.ttf',
-            :bold => 'fonts/Korinna Bold.ttf'
-          })
-        block.call(self) if block
-      }
-    end
-
-    def self.generateWithFonts(filename, options = {}, &block)
-      pdf = newWithFonts(options, &block)
-      pdf.render_file(filename)
-    end
-  end
-end
 
 raise "Usage: ruby print_pdf.rb <start_date> [<end_date>]" unless ARGV.length == 1 or ARGV.length == 2
 
@@ -37,16 +11,21 @@ if (ARGV.length == 2)
   game_ids = db.execute("SELECT * FROM GAME WHERE
     DATE >= #{start_date.to_time.to_i} AND
     DATE <= #{end_date.to_time.to_i}").map { |game| game[0] }
-  puts "Printing #{game_ids.length} games"
 else
   game = db.execute("SELECT * FROM GAME WHERE DATE = ?", start_date.to_time.to_i)
+  if (game.empty?)
+    puts "No game of Jeopardy was played on #{ARGV[0]}"
+    exit
+  end
   game_ids = [game[0]]
 end
 
-# require './classes/JeopardyNormalQuestionPrinter.rb'
-# normalPrinter = JeopardyNormalQuestionPrinter.new(db, game_ids)
-# normalPrinter.printGames
+puts "Printing #{game_ids.length} games"
+
+require './classes/JeopardyNormalQuestionPrinter.rb'
+normalPrinter = JeopardyNormalQuestionPrinter.new(db, game_ids)
+normalPrinter.printGames('cards/games_round1.pdf', 'cards/games_round2.pdf')
 
 require './classes/JeopardyFinalQuestionPrinter.rb'
 finalPrinter = JeopardyFinalQuestionPrinter.new(db, game_ids)
-finalPrinter.printFinalJeopardies
+finalPrinter.printFinalJeopardies('cards/games_final.pdf')

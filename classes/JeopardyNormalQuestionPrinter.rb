@@ -1,15 +1,16 @@
 require 'prawn'
+require 'sqlite3'
 
 require_relative './JeopardyQuestionPrinter.rb'
 require_relative './Toggle.rb'
 
 class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
-  PAPER_MARGIN = 10
+  PAPER_MARGIN = 0
 
-  Q_WIDTH = 432
-  Q_HEIGHT = 288
-  Q_LEFT_MARGIN = 72
-  Q_TOP_MARGIN = 72
+  Q_WIDTH = 432 # 6 * 72
+  Q_HEIGHT = 288 # 4 * 72
+  Q_LEFT_MARGIN = 90
+  Q_TOP_MARGIN = 108
 
   TEXT_LEFT_MARGIN = 10
   TEXT_RIGHT_MARGIN = 10
@@ -22,8 +23,11 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
   QUESTION_FONT_SIZE = 8
   ANSWER_FONT_SIZE = 9
   ANSWER_INDENT = 24
+
+  JEOPARDY_LOGO_Y = 26
   JEOPARDY_LOGO_WIDTH = 60
 
+  DATE_Y = 36
   CATEGORY_HORIZONTAL_MARGIN = 36
   CATEGORY_VERTICAL_MARGIN = 18
   CATEGORY_FONT_SIZE = 42
@@ -57,9 +61,9 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
     }.to_h
   end
 
-  def printGames
-    rnd1 = Prawn::Document.newWithFonts(:left_margin => PAPER_MARGIN, :right_margin => PAPER_MARGIN)
-    rnd2 = Prawn::Document.newWithFonts(:left_margin => PAPER_MARGIN, :right_margin => PAPER_MARGIN)
+  def printGames(round1_filename, round2_filename)
+    rnd1 = Prawn::Document.newWithFonts(:margin => PAPER_MARGIN)
+    rnd2 = Prawn::Document.newWithFonts(:margin => PAPER_MARGIN)
 
     print_a_card = lambda { |pdf, questions|
       y_pos = Toggle.new(pdf.bounds.height - Q_TOP_MARGIN, pdf.bounds.height - Q_TOP_MARGIN - Q_HEIGHT)
@@ -84,13 +88,12 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
     print_a_card.call(rnd1, @questions_round1)
     print_a_card.call(rnd2, @questions_round2)
 
-    rnd1.render_file "cards/games_round1.pdf"
-    rnd2.render_file "cards/games_round2.pdf"
+    rnd1.render_file round1_filename
+    rnd2.render_file round2_filename
   end
 
   private
 
-  # printGames helper
   def print_card(pdf, y_pos, questions)
     return false if questions.length < 5 # not all questions asked
 
@@ -112,15 +115,14 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
     return false if questions.index { |question| question[:clue].match(chars_match).nil? }
 
     pdf.bounding_box([Q_LEFT_MARGIN, y_pos], :width => Q_WIDTH, :height => Q_HEIGHT) {
-      pdf.stroke_color '999999'
-      pdf.stroke_bounds
-      pdf.stroke_color '000000'
+      draw_border(pdf)
+
       pdf.bounding_box([TEXT_LEFT_MARGIN + CIRCLE_WIDTH + CIRCLE_LEFT_MARGIN, Q_HEIGHT],
         :width => Q_WIDTH - CIRCLE_WIDTH - CIRCLE_LEFT_MARGIN - TEXT_LEFT_MARGIN - TEXT_RIGHT_MARGIN,
         :height => Q_HEIGHT) {
         questions.each { |question|
           pdf.pad(12) {
-            # circle with value
+            # circle with question's value
             pdf.fill_color 'cccccc'
             pdf.fill_ellipse [
                 -TEXT_LEFT_MARGIN - CIRCLE_WIDTH / 2,
@@ -151,7 +153,7 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
           }
         }
         pdf.image "jeopardy_logo.png",
-          :at => [pdf.bounds.width - JEOPARDY_LOGO_WIDTH, JEOPARDY_LOGO_WIDTH / 2],
+          :at => [pdf.bounds.width - JEOPARDY_LOGO_WIDTH, JEOPARDY_LOGO_Y],
           :width => JEOPARDY_LOGO_WIDTH
 
         # we don't want to waste printing groups that don't fit
@@ -166,7 +168,8 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
   def print_category(pdf, y_pos, category_id)
     category = @categories_by_id[category_id]
     pdf.bounding_box([Q_LEFT_MARGIN, y_pos], :width => Q_WIDTH, :height => Q_HEIGHT) {
-      pdf.stroke_bounds
+      draw_border(pdf)
+
       pdf.bounding_box([CATEGORY_HORIZONTAL_MARGIN, Q_HEIGHT - CATEGORY_VERTICAL_MARGIN],
         :width => Q_WIDTH - CATEGORY_HORIZONTAL_MARGIN * 2,
         :height => Q_HEIGHT - CATEGORY_VERTICAL_MARGIN * 2) {
@@ -177,18 +180,16 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
           :valign => :center
 
         height = pdf.height_of category[:name]
-        if (height > pdf.bounds.height)
+        if (height >= pdf.bounds.height - 2)
           puts "Tall category: #{category}, height of #{height}. page: #{pdf.page_number}"
         end
       }
 
-      pdf.font 'Courgette', :size => 10
-      pdf.fill_color '666666'
-      pdf.text_box @games[category[:game_id]],
-        :at => [0, 20],
+      print_date(pdf, @games[category[:game_id]], {
+        :at => [0, DATE_Y],
         :align => :right,
-        :width => Q_WIDTH - CATEGORY_HORIZONTAL_MARGIN / 2
-      pdf.fill_color '000000'
+        :width => Q_WIDTH - CATEGORY_HORIZONTAL_MARGIN
+      })
     }
   end
 end

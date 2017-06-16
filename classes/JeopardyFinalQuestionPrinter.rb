@@ -1,50 +1,38 @@
 require 'prawn'
+require 'sqlite3'
 
 require_relative './JeopardyQuestionPrinter.rb'
 require_relative './Toggle.rb'
 
 class JeopardyFinalQuestionPrinter < JeopardyQuestionPrinter
-  FINAL_WIDTH = 360
-  FINAL_HEIGHT = 216
+  F_WIDTH = 216 # 3 * 72
+  F_HEIGHT = 360 # 5 * 72
+
+  ANSWER_MARGIN = 20
+  ANSWER_FONT_SIZE = 24
+
+  QUESTION_MARGIN = 10
+  QUESTION_FONT_SIZE = 14
+  QUESTION_HEIGHT = 200
+
+  SEPARATOR_THICKNESS = 20
+  CATEGORY_MARGIN = 10
+
+  DATE_Y = 20
+  JEOPARDY_LOGO_HEIGHT = 14
 
   def initialize(db, game_ids)
     super
 
-    @questions = @db.execute("SELECT * FROM QUESTION WHERE GAME_ID IN (#{@game_ids.join(', ')})").map { |q|
-      {
-        :game_id => q[1],
-        :category_id => q[2],
-        :value => q[3],
-        :round => q[4],
-        :daily_double => q[5],
-        :clue => q[6],
-        :answer => q[7]
-      }
-    }
-
-    @questions_round1 = Hash.new { |hash, key| hash[key] = Array.new }
-    @questions_round2 = Hash.new { |hash, key| hash[key] = Array.new }
-    category_ids = Hash.new
-    @questions.each { |question|
-      category_ids[question[:category_id]] = true
-      (question[:round] == 1 ? @questions_round1 : @questions_round2)[question[:category_id]].push(question)
-    }
-
-    categories = @db.execute("SELECT * FROM CATEGORY WHERE ID IN (#{category_ids.keys.join(', ')})")
-    @categories_by_id = categories.map { |category|
-      [category[0], {:game_id => category[1], :name => category[2], :round => category[3]}]
-    }.to_h
-  end
-
-  def printFinalJeopardies
-    finals = @db.execute("SELECT * FROM FINAL_JEOPARDY WHERE GAME_ID IN (#{@game_ids.join(', ')})").map { |final|
+    @finals = @db.execute("SELECT * FROM FINAL_JEOPARDY WHERE GAME_ID IN (#{@game_ids.join(', ')})").map { |final|
       { :game_id => final[0], :category => final[1], :clue => final[2], :answer => final[3] }
     }
+  end
 
-    Prawn::Document.generateWithFonts("cards/games_final.pdf") { |pdf|
-      left_edges = [20, 296]
-      finals.each_index { |final_index|
-        final = finals[final_index]
+  def printFinalJeopardies(final_filename)
+    Prawn::Document.generateWithFonts(final_filename) { |pdf|
+      @finals.each_index { |final_index|
+        final = @finals[final_index]
         game_date = @games[final[:game_id]]
 
         # TODO: Skip final jeopardy questions that are crap like "clue crew"
@@ -60,16 +48,16 @@ class JeopardyFinalQuestionPrinter < JeopardyQuestionPrinter
           }
         end
 
-        if (final_index % 3 == 2 || final_index == finals.size - 1)
+        if (final_index % 3 == 2 || final_index == @finals.size - 1)
           pdf.start_new_page
           (final_index % 3 + 1).times {
             if (final_index % 3 == 0)
-              print_answer_side(pdf, 20, 710, finals[final_index])
+              print_answer_side(pdf, 20, 710, @finals[final_index])
             elsif (final_index % 3 == 1)
-              print_answer_side(pdf, 296, 710, finals[final_index])
+              print_answer_side(pdf, 296, 710, @finals[final_index])
             else
               pdf.rotate(-90, :origin => [270, 200]) {
-                print_answer_side(pdf, 200, 380, finals[final_index])
+                print_answer_side(pdf, 200, 380, @finals[final_index])
               }
             end
             final_index -= 1
@@ -79,11 +67,14 @@ class JeopardyFinalQuestionPrinter < JeopardyQuestionPrinter
     }
   end
 
-  # printFinalJeopardy helpers
+  private
+
   def print_answer_side(pdf, left_edge, top_edge, final)
-    pdf.bounding_box([left_edge, top_edge], :width => 216, :height => 360) {
-      pdf.bounding_box([20, 340], :width => 176, :height => 320) {
-        pdf.font 'Chalkboard', :style => :bold, :size => 24
+    pdf.bounding_box([left_edge, top_edge], :width => F_WIDTH, :height => F_HEIGHT) {
+      pdf.bounding_box([ANSWER_MARGIN, F_HEIGHT - ANSWER_MARGIN],
+        :width => F_WIDTH - ANSWER_MARGIN * 2,
+        :height => F_HEIGHT - ANSWER_MARGIN * 2) {
+        pdf.font 'Chalkboard', :style => :bold, :size => ANSWER_FONT_SIZE
         pdf.text_box final[:answer].jeopardy_upcase,
           :align => :center,
           :valign => :center
@@ -92,42 +83,50 @@ class JeopardyFinalQuestionPrinter < JeopardyQuestionPrinter
   end
 
   def print_question_side(pdf, left_edge, top_edge, final, game_date)
-    pdf.bounding_box([left_edge, top_edge], :width => 216, :height => 360) {
-      pdf.line_width = 1
-      pdf.stroke_color '999999'
-      pdf.stroke_bounds
-      pdf.stroke_color '000000'
+    pdf.bounding_box([left_edge, top_edge], :width => F_WIDTH, :height => F_HEIGHT) {
+      draw_border(pdf)
 
-      pdf.bounding_box([10, 350], :width => 196, :height => 200) {
-        pdf.font 'ITC Korinna', :style => :bold, :size => 16
+      # question
+      pdf.bounding_box([QUESTION_MARGIN, F_HEIGHT - QUESTION_MARGIN],
+        :width => F_WIDTH - QUESTION_MARGIN * 2,
+        :height => QUESTION_HEIGHT) {
+        pdf.font 'ITC Korinna', :style => :bold, :size => QUESTION_FONT_SIZE
         pdf.text_box final[:clue].jeopardy_upcase,
           :align => :center,
           :valign => :center
         height = pdf.height_of final[:clue].jeopardy_upcase
-        if (height > 180)
-          puts "#{height}: #{pdf.page_number}"
+        if (height >= pdf.bounds.height - 2)
+          puts "Tall final question, height of #{height}. page: #{pdf.page_number}"
         end
       }
 
-      pdf.line_width = 20
-      pdf.stroke { pdf.horizontal_line 0, 216, :at => 120 }
+      # separator line
+      separator_y = F_HEIGHT - QUESTION_HEIGHT - QUESTION_MARGIN * 2
+      pdf.line_width = SEPARATOR_THICKNESS
+      pdf.stroke { pdf.horizontal_line 0, F_WIDTH, :at => separator_y }
 
-      pdf.bounding_box([10, 110], :width => 196, :height => 90) {
+      # category. to see before bidding, goes below separator line
+      pdf.bounding_box([CATEGORY_MARGIN, separator_y - (SEPARATOR_THICKNESS / 2) - CATEGORY_MARGIN],
+        :width => F_WIDTH - CATEGORY_MARGIN * 2,
+        :height => separator_y - (SEPARATOR_THICKNESS / 2) - (CATEGORY_MARGIN * 2) - DATE_FONT_SIZE) {
         pdf.font 'Helvetica Inserat', :size => 24
         pdf.text_box final[:category].jeopardy_upcase,
           :align => :center,
           :valign => :center
+
+        height = pdf.height_of final[:category].jeopardy_upcase
+        if (height >= pdf.bounds.height - 2)
+          puts "Tall final category, height of #{height}. page: #{pdf.page_number}"
+        end
       }
 
-      pdf.image "jeopardy_logo.png", :at => [10, 20], :width => 50
+      pdf.image "jeopardy_logo.png", :at => [CATEGORY_MARGIN, DATE_Y], :height => JEOPARDY_LOGO_HEIGHT
 
-      pdf.font 'Courgette', :size => 10
-      pdf.fill_color '666666'
-      pdf.text_box game_date,
-        :at => [0, 20],
+      print_date(pdf, game_date, {
+        :at => [CATEGORY_MARGIN, DATE_Y],
         :align => :right,
-        :width => 206
-      pdf.fill_color '000000'
+        :width => F_WIDTH - CATEGORY_MARGIN * 2
+      })
     }
   end
 end
