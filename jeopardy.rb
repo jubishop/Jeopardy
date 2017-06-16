@@ -23,6 +23,7 @@ def scrape(game_id)
     title = doc.css('#game_title').text
     raise ScrapeException, "#{game_id}: No title" if (title.empty?)
 
+    # TODO: Rescrape and use UTC timezone, dates are off :(
     game_date = Date.parse(title)
 
     $db.execute('INSERT INTO GAME VALUES (?, ?)',
@@ -104,4 +105,4 @@ def scrape(game_id)
   end
 end
 
-1.upto(5657) { |game_id| scrape(game_id) }
+5658.upto(5682) { |game_id| scrape(game_id) }

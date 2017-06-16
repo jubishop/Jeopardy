@@ -64,4 +64,21 @@ class JeopardyQuestionPrinter
     pdf.stroke_bounds
     pdf.stroke_color '000000'
   end
+
+  def valid_question?(question)
+    # visual clues
+    return false if question.match(/seen here/i)
+    return false if question.match(/^\(.*?presents.*?\)/i)
+    return false if question.match(/^\(.*?clue.*?\)/i)
+    return false if question.match(/^\(.*?i\'m.*?\)/i)
+    return false if question.match(/^\(.*?reads.*?\)/i)
+    return false if question.match(/^\(.*?shows.*?\)/i)
+    return false if question.match(/^\(.*?reports.*?\)/i)
+
+    # no international chars
+    chars_match = /^[\p{Latin}|0-9|\s|'|&|\-|\"|\,|\.|\/|\!|\;|\:|\_|\?|\(|\)|\$|\#|\%|\+|\=|\‑|\¿|\°|\@|\¡|\*]+$/
+    return false unless question.match(chars_match)
+
+    return true
+  end
 end

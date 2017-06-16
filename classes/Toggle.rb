@@ -1,13 +1,13 @@
 class Toggle
   attr_accessor :counter
 
-  def initialize(one, two)
-    @values = [one, two]
+  def initialize(*values)
+    @values = values
     @counter = 0
   end
 
   def value
-    @values[@counter % 2]
+    @values[@counter % @values.length]
   end
 
   def first
@@ -20,5 +20,9 @@ class Toggle
 
   def toggle
     @counter += 1
+  end
+
+  def reset
+    @counter = 0
   end
 end

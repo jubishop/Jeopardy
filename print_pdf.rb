@@ -4,10 +4,10 @@ raise "Usage: ruby print_pdf.rb <start_date> [<end_date>]" unless ARGV.length ==
 
 db = SQLite3::Database.new "jeopardy.sqlite3"
 
-start_date = DateTime.strptime(ARGV[0], "%m/%d/%Y") + (7/24.0)
+start_date = DateTime.strptime(ARGV[0], "%m/%d/%Y") + (7/24.0) # TODO: Sometimes 8/24 is right :(
 
 if (ARGV.length == 2)
-  end_date = DateTime.strptime(ARGV[1], "%m/%d/%Y") + (7/24.0)
+  end_date = DateTime.strptime(ARGV[1], "%m/%d/%Y") + (7/24.0) # or 8/24
   game_ids = db.execute("SELECT * FROM GAME WHERE
     DATE >= #{start_date.to_time.to_i} AND
     DATE <= #{end_date.to_time.to_i}").map { |game| game[0] }

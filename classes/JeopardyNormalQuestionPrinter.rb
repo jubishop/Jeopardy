@@ -5,8 +5,6 @@ require_relative './JeopardyQuestionPrinter.rb'
 require_relative './Toggle.rb'
 
 class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
-  PAPER_MARGIN = 0
-
   Q_WIDTH = 432 # 6 * 72
   Q_HEIGHT = 288 # 4 * 72
   Q_LEFT_MARGIN = 90
@@ -62,8 +60,8 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
   end
 
   def printGames(round1_filename, round2_filename)
-    rnd1 = Prawn::Document.newWithFonts(:margin => PAPER_MARGIN)
-    rnd2 = Prawn::Document.newWithFonts(:margin => PAPER_MARGIN)
+    rnd1 = Prawn::Document.newWithFonts(:margin => 0)
+    rnd2 = Prawn::Document.newWithFonts(:margin => 0)
 
     print_a_card = lambda { |pdf, questions|
       y_pos = Toggle.new(pdf.bounds.height - Q_TOP_MARGIN, pdf.bounds.height - Q_TOP_MARGIN - Q_HEIGHT)
@@ -76,17 +74,23 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
         end
         if (printed_categories.length == 2)
           pdf.start_new_page
-          print_category(pdf, y_pos.first, printed_categories.first)
-          print_category(pdf, y_pos.last, printed_categories.last)
+          printed_categories.each { |printed_category|
+            print_category(pdf, y_pos.value, printed_category)
+            y_pos.toggle
+          }
           printed_categories.clear
-          unless (questions.empty?)
-            pdf.start_new_page
-          end
+          pdf.start_new_page unless (questions.empty?)
         end
       end
+
+      unless (printed_categories.empty?)
+        pdf.start_new_page
+        y_pos.reset
+        print_category(pdf, y_pos.value, printed_categories.pop)
+      end
     }
-    print_a_card.call(rnd1, @questions_round1)
-    print_a_card.call(rnd2, @questions_round2)
+    print_a_card.call(rnd1, @questions_round1.clone)
+    print_a_card.call(rnd2, @questions_round2.clone)
 
     rnd1.render_file round1_filename
     rnd2.render_file round2_filename
@@ -97,22 +101,14 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
   def print_card(pdf, y_pos, questions)
     return false if questions.length < 5 # not all questions asked
 
-    # visual clues
-    return false if questions.index { |question| question[:clue].match(/seen here/i) }
-    return false if questions.index { |question| question[:clue].match(/^\(.*?presents.*?\)/i) }
-    return false if questions.index { |question| question[:clue].match(/^\(.*?clue.*?\)/i) }
-    return false if questions.index { |question| question[:clue].match(/^\(.*?i\'m.*?\)/i) }
-    return false if questions.index { |question| question[:clue].match(/^\(.*?reads.*?\)/i) }
-    return false if questions.index { |question| question[:clue].match(/^\(.*?shows.*?\)/i) }
-    return false if questions.index { |question| question[:clue].match(/^\(.*?reports.*?\)/i) }
-
     # no international chars in clue OR answer
     questions.each { |question|
       question[:clue].strip_international
       question[:answer].strip_international
     }
-    chars_match = /^[\p{Latin}|0-9|\s|'|&|\-|\"|\,|\.|\/|\!|\;|\:|\_|\?|\(|\)|\$|\#|\%|\+|\=|\‑|\¿|\°|\@|\¡|\*]+$/
-    return false if questions.index { |question| question[:clue].match(chars_match).nil? }
+
+    # validate questions
+    return false if questions.index { |question| not valid_question? question[:clue] }
 
     pdf.bounding_box([Q_LEFT_MARGIN, y_pos], :width => Q_WIDTH, :height => Q_HEIGHT) {
       draw_border(pdf)
