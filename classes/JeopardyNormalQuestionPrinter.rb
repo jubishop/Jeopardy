@@ -183,9 +183,9 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
       }
 
       print_date(pdf, @games[category[:game_id]], {
-        :at => [0, DATE_Y],
+        :at => [CATEGORY_HORIZONTAL_MARGIN, DATE_Y],
         :align => :right,
-        :width => Q_WIDTH - CATEGORY_HORIZONTAL_MARGIN
+        :width => Q_WIDTH - CATEGORY_HORIZONTAL_MARGIN * 2
       })
     }
   end
