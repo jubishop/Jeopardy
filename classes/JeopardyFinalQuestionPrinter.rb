@@ -114,8 +114,6 @@ class JeopardyFinalQuestionPrinter < JeopardyQuestionPrinter
         end
       }
 
-      pdf.image "jeopardy_logo.png", :at => [CATEGORY_MARGIN, DATE_Y], :height => JEOPARDY_LOGO_HEIGHT
-
       print_date(pdf, game_date, {
         :at => [CATEGORY_MARGIN, DATE_Y],
         :align => :right,

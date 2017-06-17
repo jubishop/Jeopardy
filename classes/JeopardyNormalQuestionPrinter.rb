@@ -147,11 +147,8 @@ class JeopardyNormalQuestionPrinter < JeopardyQuestionPrinter
             pdf.text_box question[:answer].jeopardy_upcase, :at => [ANSWER_INDENT, pdf.cursor]
           }
         }
-        pdf.image "jeopardy_logo.png",
-          :at => [pdf.bounds.width - JEOPARDY_LOGO_WIDTH, JEOPARDY_LOGO_Y],
-          :width => JEOPARDY_LOGO_WIDTH
 
-        # we don't want to waste printing groups that don't fit
+        # text of question didn't fit
         if (pdf.cursor < 20)
           puts "Long text, cursor at: #{pdf.cursor}. page: #{pdf.page_number}, round #{questions.first[:round]}"
         end
