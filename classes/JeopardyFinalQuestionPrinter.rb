@@ -42,6 +42,12 @@ class JeopardyFinalQuestionPrinter < JeopardyQuestionPrinter
         [x_values[0], y_values[1]],
         [x_values[1], y_values[1]]
       )
+      answer_pos = Toggle.new(
+        [x_values[1], y_values[0]],
+        [x_values[0], y_values[0]],
+        [x_values[1], y_values[1]],
+        [x_values[0], y_values[1]]
+      )
       printed_finals = Array.new
 
       @finals.each_index { |final_index|
@@ -52,9 +58,10 @@ class JeopardyFinalQuestionPrinter < JeopardyQuestionPrinter
         end
         if (printed_finals.length == 4)
           pdf.start_new_page
+          answer_pos.reset
           printed_finals.each { |printed_final|
-            print_answer_side(pdf, pos.value[0], pos.value[1], printed_final)
-            pos.toggle
+            print_answer_side(pdf, answer_pos.value[0], answer_pos.value[1], printed_final)
+            answer_pos.toggle
           }
           printed_finals.clear
           pdf.start_new_page unless (final_index == @finals.length - 1)
@@ -63,10 +70,10 @@ class JeopardyFinalQuestionPrinter < JeopardyQuestionPrinter
 
       unless (printed_finals.empty?)
         pdf.start_new_page
-        pos.reset
+        answer_pos.reset
         until (printed_finals.empty?)
-          print_answer_side(pdf, pos.value[0], pos.value[1], printed_finals.shift)
-          pos.toggle
+          print_answer_side(pdf, answer_pos.value[0], answer_pos.value[1], printed_finals.shift)
+          answer_pos.toggle
         end
       end
     }
