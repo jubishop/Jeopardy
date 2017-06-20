@@ -4,7 +4,8 @@ raise "Usage: ruby print_pdf.rb <start_date> [<end_date>]" unless ARGV.length ==
 
 db = SQLite3::Database.new "jeopardy.sqlite3"
 
-# TODO: Get all dates on UTC
+# TODO: Convert 1ST to 1st, not 1sT...
+# TODO: flip around finals so front matches back properly..
 start_date = Date.strptime(ARGV[0], "%m/%d/%Y")
 
 if (ARGV.length == 2)
