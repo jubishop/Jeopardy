@@ -15,6 +15,13 @@ end
 
 def scrape(game_id)
   begin
+    unless $db.execute('SELECT ID from GAME where ID = ?', game_id).empty?
+      $db.execute('DELETE FROM GAME WHERE ID = ?', game_id)
+      $db.execute('DELETE FROM CATEGORY WHERE GAME_ID = ?', game_id)
+      $db.execute('DELETE FROM QUESTION WHERE GAME_ID = ?', game_id)
+      $db.execute('DELETE FROM FINAL_JEOPARDY WHERE GAME_ID = ?', game_id)
+    end
+
     doc = Nokogiri::HTML(open("games/game_#{game_id}.html"))
 
     error = doc.css('p.error')
@@ -103,4 +110,4 @@ def scrape(game_id)
   end
 end
 
-1.upto(5682) { |game_id| scrape(game_id) }
+5680.upto(5731) { |game_id| scrape(game_id) }
